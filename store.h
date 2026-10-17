@@ -9,7 +9,7 @@ typedef struct Batch{
 }Batch;
 
 typedef struct Product{
-    int pid;
+    char *pid;
     char *name;
     int price;
     Batch *batches;
@@ -17,16 +17,18 @@ typedef struct Product{
 }Product;
 
 typedef struct CartItem{
-    int pid;
+    char *pid;
     int quantity;
     struct CartItem *next;
 }CartItem;
 
 typedef struct Cart{
-    int cid;
+    char *cid;
     CartItem *items;
     struct Cart *next;
 }Cart;
+
+void IMPORT(char *filename);
 
 void run_program(void);
 
