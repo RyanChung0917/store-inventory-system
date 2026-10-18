@@ -41,6 +41,7 @@ Product *create_product(const char *pid, const char *name){
     strcpy(p->name, name);
 
     p->price = -1;
+    p->stock = 0;
     p->batches = NULL;
     p->next = NULL;
 
@@ -80,6 +81,7 @@ Batch *create_batch(Product *product, int quantity, int unit_cost){
         }
         ptr->next = b;
     }
+    product->stock += quantity;
     return b;
 }
 
@@ -139,7 +141,41 @@ void IMPORT(const char *filename){
 
     fclose(fp);
     printf("OK IMPORT %d\n", batch_cnt);
-    return;
+}
+
+void PRICE(const char *pid, int price){
+    Product *product = find_product(pid);
+
+    if(product == NULL){
+        printf("ERR NO_PRODUCT\n");
+        return;
+    }
+
+    product->price = price;
+    printf("OK PRICE %s %d\n", pid, price);
+}
+
+void QUERY(const char *pid){
+    Product *product = find_product(pid);
+
+    if(product == NULL){
+        printf("ERR NO_PRODUCT\n");
+        return;
+    }
+
+    if(product->price == -1){
+        printf("QUERY %s %s price=none stock=%d\n", pid, product->name, product->stock);
+    }else{
+        printf("QUERY %s %s price=%d stock=%d\n", pid, product->name, product->price, product->stock);
+    }
+    
+    if(product->stock != 0){
+        Batch *ptr = product->batches;
+        while(ptr != NULL){
+            printf("#%d qty=%d cost=%d\n", ptr->batch_id, ptr->quantity, ptr->unit_cost);
+            ptr = ptr->next;
+        }
+    }
 }
 
 void run_program(void){

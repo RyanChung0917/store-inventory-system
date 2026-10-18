@@ -12,6 +12,7 @@ typedef struct Product{
     char *pid;
     char *name;
     int price;
+    int stock;
     Batch *batches;
     struct Product *next;
 }Product;
@@ -28,7 +29,11 @@ typedef struct Cart{
     struct Cart *next;
 }Cart;
 
-void IMPORT(char *filename);
+void IMPORT(const char *filename);
+
+void PRICE(const char *pid, int price);
+
+void QUERY(const char *pid);
 
 void run_program(void);
 
