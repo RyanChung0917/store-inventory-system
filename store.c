@@ -7,6 +7,8 @@ static Product *products = NULL; //linked list of products
 static Cart *carts = NULL;//linked list of carts
 static int next_batch_id = 1;
 static int revenue = 0, cogs = 0, gift_cost = 0;
+static char promo_pid[16], discount_pid[16];
+static int promo_threshold = -1, discount = 100, have_discount = 0;
 
 static Product *find_product(const char *pid){
     Product *ptr = products;
@@ -251,7 +253,9 @@ void REPORT(){
     printf("REPORT\n");
     Product *ptr = products;
     while(ptr != NULL){
-        printf("  %s stock=%d value=%d\n", ptr->pid, ptr->stock, ptr->value);
+        if(ptr->stock != 0 && ptr->value != 0){
+            printf("  %s stock=%d value=%d\n", ptr->pid, ptr->stock, ptr->value);
+        }
         ptr = ptr->next;
     }
     printf("REVENUE %d\nCOGS %d\nGIFTCOST %d\nPROFIT %d\n", revenue, cogs, gift_cost, revenue-cogs-gift_cost);
@@ -385,6 +389,9 @@ void CHECKOUT(char *cid){
             printf("ERR INSUFFICIENT %s", p->pid);
             return;
         }
+        if(strcmp(p->pid, promo_pid) == 0 && item->quantity >= promo_threshold){
+            have_discount = 1;
+        }
         item = item->next;
     }
 
@@ -393,6 +400,11 @@ void CHECKOUT(char *cid){
     int total = 0, cost = 0, P = 100;
     item = cart->items;
     while(item != NULL){
+        if(have_discount && strcmp(item->pid, discount_pid) == 0){
+            P = discount;
+        }else{
+            P = 100;
+        }
         Product *cur_product = find_product(item->pid);
         Batch *cur_batch = cur_product->batches;
         int subtotal = (cur_product->price * item->quantity * P + 50) / 100;
@@ -414,8 +426,12 @@ void CHECKOUT(char *cid){
             }
         }
 
-        printf("  %s x%d @%d = %d\n", item->pid, item->quantity, cur_product->price, subtotal);
-
+        if(P == 100){
+            printf("  %s x%d @%d = %d\n", item->pid, item->quantity, cur_product->price, subtotal);
+        }else{
+            printf("  %s x%d @%d *%d%% = %d\n", item->pid, item->quantity, cur_product->price, discount, subtotal);
+        }
+        
         total += subtotal;
         item = item->next;
     }
@@ -480,4 +496,12 @@ void CHECKOUT(char *cid){
     gift_cost += g_cost;
 
     close_cart(cid);
+}
+
+void PROMO(const char *pid_a, int n, const char *pid_b, int P){
+    strcpy(promo_pid, pid_a);
+    strcpy(discount_pid, pid_b);
+    promo_threshold = n;
+    discount = P;
+    printf("OK PROMO\n");
 }

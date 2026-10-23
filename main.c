@@ -7,7 +7,7 @@ int main(void){
     char line[256];
     char command[20];
     char arg1[100], arg2[100];
-    int price = -1, qty = -1;
+    int price = -1, qty = -1, discount = -1;
     while(fgets(line, sizeof(line), stdin) != NULL){
         if(sscanf(line, "%10s", command) != 1){
             continue;
@@ -36,6 +36,9 @@ int main(void){
         }else if(strcmp(command, "CHECKOUT") == 0){
             sscanf(line, "%*s%16s", arg1);
             CHECKOUT(arg1);
+        }else if(strcmp(command, "PROMO") == 0){
+            sscanf(line, "%*s%16s%d%16s%d", arg1, &qty, arg2, &discount);
+            PROMO(arg1, qty, arg2, discount);
         }
     }
     return 0;

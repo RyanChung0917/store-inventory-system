@@ -45,4 +45,6 @@ void ADD(const char *cid, const char *pid, int qty);
 
 void CHECKOUT(char *cid);
 
+void PROMO(const char *pid_a, int n, const char *pid_b, int P);
+
 #endif
