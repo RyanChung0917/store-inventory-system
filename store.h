@@ -12,7 +12,7 @@ typedef struct Product{
     char *pid;
     char *name;
     int price;
-    int stock;
+    int stock, value;
     Batch *batches;
     struct Product *next;
 }Product;
@@ -35,6 +35,8 @@ void PRICE(const char *pid, int price);
 
 void QUERY(const char *pid);
 
-void run_program(void);
+void REPORT();
+
+void QUIT();
 
 #endif

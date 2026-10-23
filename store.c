@@ -5,8 +5,9 @@
 
 static Product *products = NULL; //linked list of products
 static int next_batch_id = 1;
+static int revenue = 0, cogs = 0, gift_cost = 0;
 
-Product *find_product(const char *pid){
+static Product *find_product(const char *pid){
     Product *ptr = products;
     while(ptr != NULL){
         if(strcmp(pid, ptr->pid) == 0){
@@ -18,7 +19,7 @@ Product *find_product(const char *pid){
     return ptr;
 }
 
-Product *create_product(const char *pid, const char *name){
+static Product *create_product(const char *pid, const char *name){
     //create a new product
     Product *p = malloc(sizeof(Product));
     if(p == NULL){
@@ -42,23 +43,33 @@ Product *create_product(const char *pid, const char *name){
 
     p->price = -1;
     p->stock = 0;
+    p->value = 0;
     p->batches = NULL;
     p->next = NULL;
 
-    //adding new product to products
+    //adding new product to product list
     if(products == NULL){
         products = p;
+    }else if(strcmp(pid, products->pid) < 0){
+        p->next = products;
+        products = p;
     }else{
-        Product *ptr = products;
-        while(ptr->next != NULL){
-            ptr = ptr->next;
+        Product *cur = products, *prev = NULL;
+        while(cur != NULL){
+            if(strcmp(pid, cur->pid) > 0){
+                prev = cur;
+                cur = cur->next;
+            }else{
+                break;
+            }
         }
-        ptr->next = p;
+        p->next = cur;
+        prev->next = p;
     }
     return p;
 }
 
-Batch *create_batch(Product *product, int quantity, int unit_cost){
+static Batch *create_batch(Product *product, int quantity, int unit_cost){
     //create a new batch
     Batch *b = malloc(sizeof(Batch));
     if(b == NULL){
@@ -82,6 +93,7 @@ Batch *create_batch(Product *product, int quantity, int unit_cost){
         ptr->next = b;
     }
     product->stock += quantity;
+    product->value += (quantity*unit_cost);
     return b;
 }
 
@@ -103,14 +115,14 @@ void IMPORT(const char *filename){
         
         tail_ptr = strstr(line, "###");
         len = tail_ptr-head_ptr;
-        strncpy(pid, line, len);
+        strncpy(pid, head_ptr, len);
         pid[len] = '\0';
         Product *product = find_product(pid);
 
         head_ptr = tail_ptr + 3;
         tail_ptr = strstr(line, "@@@");
         len = tail_ptr-head_ptr;
-        strncpy(name, line, len);
+        strncpy(name, head_ptr, len);
         name[len] = '\0';
 
         head_ptr = tail_ptr + 3;
@@ -172,12 +184,38 @@ void QUERY(const char *pid){
     if(product->stock != 0){
         Batch *ptr = product->batches;
         while(ptr != NULL){
-            printf("#%d qty=%d cost=%d\n", ptr->batch_id, ptr->quantity, ptr->unit_cost);
+            printf("  #%d qty=%d cost=%d\n", ptr->batch_id, ptr->quantity, ptr->unit_cost);
             ptr = ptr->next;
         }
     }
 }
 
-void run_program(void){
-    printf("Inventory system started.\n");
+void REPORT(){
+    printf("REPORT\n");
+    Product *ptr = products;
+    while(ptr != NULL){
+        printf("  %s stock=%d value=%d\n", ptr->pid, ptr->stock, ptr->value);
+        ptr = ptr->next;
+    }
+    printf("REVENUE %d\nCOGS %d\nGIFTCOST %d\nPROFIT %d\n", revenue, cogs, gift_cost, revenue-cogs-gift_cost);
+}
+
+void QUIT(){
+    Product *ptr = products;
+    while(ptr != NULL){
+        Product *next_product = ptr->next;
+
+        Batch *ptr_batch = ptr->batches;
+        while(ptr_batch != NULL){
+            Batch *next_batch = ptr_batch->next;
+            free(ptr_batch);
+            ptr_batch = next_batch;
+        }
+
+        free(ptr);
+        ptr = next_product;
+    }
+    //cart and cartItem
+
+    printf("BYE\n");
 }
