@@ -39,4 +39,10 @@ void REPORT();
 
 void QUIT();
 
+void CART(const char *cid);
+
+void ADD(const char *cid, const char *pid, int qty);
+
+void CHECKOUT(char *cid);
+
 #endif
