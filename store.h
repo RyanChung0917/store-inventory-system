@@ -31,7 +31,7 @@ typedef struct Cart{
 
 void IMPORT(const char *filename);
 
-void PRICE(const char *pid, int price);
+void PRICE(const char *pid, int price, int output);
 
 void QUERY(const char *pid);
 
@@ -46,5 +46,9 @@ void ADD(const char *cid, const char *pid, int qty);
 void CHECKOUT(char *cid);
 
 void PROMO(const char *pid_a, int n, const char *pid_b, int P);
+
+void SAVE(const char *filename);
+
+void LOAD(const char *filename);
 
 #endif

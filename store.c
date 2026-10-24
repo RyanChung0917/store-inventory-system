@@ -5,7 +5,7 @@
 
 static Product *products = NULL; //linked list of products
 static Cart *carts = NULL;//linked list of carts
-static int next_batch_id = 1;
+static int next_batch_id = 1, product_cnt = 0, batch_cnt = 0;
 static int revenue = 0, cogs = 0, gift_cost = 0;
 static char promo_pid[16], discount_pid[16];
 static int promo_threshold = -1, discount = 100, have_discount = 0;
@@ -81,21 +81,21 @@ static Product *create_product(const char *pid, const char *name){
         p->next = cur;
         prev->next = p;
     }
+    product_cnt++;
     return p;
 }
 
-static Batch *create_batch(Product *product, int quantity, int unit_cost){
+static Batch *create_batch(Product *product, int quantity, int unit_cost, int batch_id){
     //create a new batch
     Batch *b = malloc(sizeof(Batch));
     if(b == NULL){
         return NULL;
     }
 
-    b->batch_id = next_batch_id;
+    b->batch_id = batch_id;
     b->quantity = quantity;
     b->unit_cost = unit_cost;
     b->next = NULL;
-    next_batch_id++;
 
     //adding new batch to product
     if(product->batches == NULL){
@@ -109,7 +109,20 @@ static Batch *create_batch(Product *product, int quantity, int unit_cost){
     }
     product->stock += quantity;
     product->value += (quantity*unit_cost);
+    batch_cnt++;
     return b;
+}
+
+static void free_product(Product *p){
+    Batch *b = p->batches;
+    while(b != NULL){
+        Batch *next_b = b->next;
+        free(b);
+        b = next_b;
+    }
+    free(p->pid);
+    free(p->name);
+    free(p);
 }
 
 static void free_cart(Cart *c){
@@ -148,6 +161,7 @@ static void delete_batch(Batch *b, Product *p){
 
     p->stock -= b->quantity;
     p->value -= (b->quantity * b->unit_cost);
+    batch_cnt--;
     if(prev == NULL){
         p->batches = cur->next;
     }else{
@@ -164,7 +178,7 @@ void IMPORT(const char *filename){
         return;
     }
 
-    char line[1024];
+    char line[256];
     int batch_cnt = 0;
     while(fgets(line, sizeof(line), fp) != NULL){
         char *head_ptr = line;
@@ -204,7 +218,8 @@ void IMPORT(const char *filename){
         if(product == NULL){
             product = create_product(pid, name);
         } 
-        Batch *batch = create_batch(product, qty, unit_cost);
+        Batch *batch = create_batch(product, qty, unit_cost, next_batch_id);
+        next_batch_id++;
         if(batch != NULL){
             batch_cnt++;
         }
@@ -214,7 +229,7 @@ void IMPORT(const char *filename){
     printf("OK IMPORT %d\n", batch_cnt);
 }
 
-void PRICE(const char *pid, int price){
+void PRICE(const char *pid, int price, int output){
     Product *product = find_product(pid);
 
     if(product == NULL){
@@ -223,7 +238,9 @@ void PRICE(const char *pid, int price){
     }
 
     product->price = price;
-    printf("OK PRICE %s %d\n", pid, price);
+    if(output){
+        printf("OK PRICE %s %d\n", pid, price);
+    }
 }
 
 void QUERY(const char *pid){
@@ -265,17 +282,7 @@ void QUIT(){
     Product *p_ptr = products;
     while(p_ptr != NULL){
         Product *next_product = p_ptr->next;
-
-        Batch *p_ptr_batch = p_ptr->batches;
-        while(p_ptr_batch != NULL){
-            Batch *next_batch = p_ptr_batch->next;
-            free(p_ptr_batch);
-            p_ptr_batch = next_batch;
-        }
-
-        free(p_ptr->pid);
-        free(p_ptr->name);
-        free(p_ptr);
+        free_product(p_ptr);
         p_ptr = next_product;
     }
 
@@ -386,7 +393,7 @@ void CHECKOUT(char *cid){
             return;
         }
         if(p->stock < item->quantity){
-            printf("ERR INSUFFICIENT %s", p->pid);
+            printf("ERR INSUFFICIENT %s\n", p->pid);
             return;
         }
         if(strcmp(p->pid, promo_pid) == 0 && item->quantity >= promo_threshold){
@@ -504,4 +511,130 @@ void PROMO(const char *pid_a, int n, const char *pid_b, int P){
     promo_threshold = n;
     discount = P;
     printf("OK PROMO\n");
+}
+
+void SAVE(const char *filename){
+    FILE *fp = fopen(filename, "w");
+    if(fp == NULL){
+        printf("ERR FILE_OPEN\n");
+        return;
+    }
+
+    fprintf(fp, "NEXT_BATCH %d\n", next_batch_id);
+    fprintf(fp, "PRODUCTS %d\n", product_cnt);
+
+    Product *ptr = products;
+    while(ptr != NULL){
+        fprintf(fp, "%s %d\n", ptr->pid, ptr->price);
+        fprintf(fp, "%s\n", ptr->name);
+        ptr = ptr->next;
+    }
+
+    if(promo_threshold != -1){
+        fprintf(fp, "PROMO 1\n");
+        fprintf(fp, "%s %d %s %d\n", promo_pid, promo_threshold, discount_pid, discount);
+    }else{
+        fprintf(fp, "PROMO 0\n");
+    }
+
+    fprintf(fp, "TOTALS %d %d %d\n", revenue, cogs, gift_cost);
+
+    fprintf(fp, "BATCHES %d\n", batch_cnt);
+    ptr = products;
+    Batch *b = NULL;
+    while(ptr != NULL){
+        b = ptr->batches;
+        while(b != NULL){
+            fprintf(fp, "%s %d %d %d\n", ptr->pid, b->batch_id, b->quantity, b->unit_cost);
+            b = b->next;
+        }
+        ptr = ptr->next;
+    }
+    fclose(fp);
+    printf("OK SAVE\n");
+}
+
+void LOAD(const char *filename){
+    FILE *fp = fopen(filename, "r");
+    if(fp == NULL){
+        printf("ERR FILE_OPEN\n");
+        return;
+    }
+
+    //close all carts
+    Cart *c_ptr = carts;
+    while(c_ptr != NULL){
+        Cart *next_cart = c_ptr->next;
+        free_cart(c_ptr);
+        c_ptr = next_cart;
+    }
+    carts = NULL;
+
+    char line[256], command[128];
+    int num1 = -1, num2 = -1, num3 = -1, num4 = -1;
+    char arg1[100], arg2[100];
+    while(fgets(line, sizeof(line), fp) != NULL){
+        if(sscanf(line, "%s", command) != 1){
+            continue;
+        }
+
+        if(strcmp(command, "NEXT_BATCH") == 0){
+            sscanf(line, "%*s%d", &num1);
+            next_batch_id = num1;
+        }else if(strcmp(command, "PRODUCTS") == 0){
+            sscanf(line, "%*s%d", &num1);
+
+            Product *p_ptr = products;
+            while(p_ptr != NULL){
+                Product *next_product = p_ptr->next;
+                free_product(p_ptr);
+                p_ptr = next_product;
+            }
+            products = NULL;
+            product_cnt = 0;
+
+            for(int i = 0; i < num1; ++i){
+                fgets(command, sizeof(command), fp);
+                sscanf(command, "%s%d", arg1, &num2);
+                fgets(arg2, sizeof(arg2), fp);
+                arg2[strcspn(arg2, "\r\n")] = '\0';
+
+                create_product(arg1, arg2);
+                PRICE(arg1, num2, 0);
+            }
+        }else if(strcmp(command, "PROMO") == 0){
+            have_discount = 0;
+            sscanf(line, "%*s%d", &num1);
+            if(num1 == 0){
+                promo_pid[0] = '\0';
+                promo_threshold = -1;
+                discount_pid[0] = '\0';
+                discount = 100;
+            }else{
+                fgets(command, sizeof(command), fp);
+                sscanf(command, "%s%d%s%d", arg1, &num2, arg2, &num3);
+                strcpy(promo_pid, arg1);
+                promo_threshold = num2;
+                strcpy(discount_pid, arg2);
+                discount = num3;
+            }
+        }else if(strcmp(command, "TOTALS") == 0){
+            sscanf(line, "%*s%d%d%d", &num1, &num2, &num3);
+            revenue = num1;
+            cogs = num2;
+            gift_cost = num3;
+        }else if(strcmp(command, "BATCHES") == 0){
+            sscanf(line, "%*s%d", &num1);
+            batch_cnt = 0;
+            for(int i = 0; i < num1; ++i){
+                fgets(command, sizeof(command), fp);
+                sscanf(command, "%s%d%d%d", arg1, &num2, &num3, &num4);
+                Product *p = find_product(arg1);
+                create_batch(p, num3, num4, num2);
+            }
+        }
+    }
+
+    fclose(fp);
+    printf("OK LOAD\n");
 }

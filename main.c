@@ -18,7 +18,7 @@ int main(void){
             IMPORT(arg1);
         }else if(strcmp(command, "PRICE") == 0){
             sscanf(line, "%*s%16s%d", arg1, &price);
-            PRICE(arg1, price);
+            PRICE(arg1, price, 1);
         }else if(strcmp(command, "QUERY") == 0){
             sscanf(line, "%*s%16s", arg1);
             QUERY(arg1);
@@ -39,6 +39,12 @@ int main(void){
         }else if(strcmp(command, "PROMO") == 0){
             sscanf(line, "%*s%16s%d%16s%d", arg1, &qty, arg2, &discount);
             PROMO(arg1, qty, arg2, discount);
+        }else if(strcmp(command, "SAVE") == 0){
+            sscanf(line, "%*s%99s", arg1);
+            SAVE(arg1);
+        }else if(strcmp(command, "LOAD") == 0){
+            sscanf(line, "%*s%99s", arg1);
+            LOAD(arg1);
         }
     }
     return 0;
